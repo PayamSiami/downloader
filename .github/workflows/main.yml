@@ -72,14 +72,14 @@ permissions:
   actions: read
 
 concurrency:
-  group: صف-آپلود-فایل
+  group: file-upload-queue
   cancel-in-progress: false
 
 env:
   PYTHONUNBUFFERED: 1
 
 jobs:
-  آپلود-فایل-ها:
+  upload-files:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     
@@ -101,7 +101,7 @@ jobs:
           echo "✅ پاکسازی انجام شد"
 
       - name: 📝 بررسی و اعتبارسنجی ورودی‌ها
-        id: بررسی
+        id: validate
         run: |
           # دریافت حجم تکه‌ها
           SIZE="${{ github.event.inputs.split_size }}"
@@ -159,16 +159,16 @@ jobs:
           echo "✅ ابزارهای مورد نیاز نصب شدند"
 
       - name: 📥 دانلود فایل‌ها (حالت همزمان)
-        id: دانلود
+        id: download
         run: |
           mkdir -p downloads/temp
           cd downloads/temp
           
-          PARALLEL="${{ steps.بررسی.outputs.parallel }}"
-          RETRY="${{ steps.بررسی.outputs.retry }}"
-          TIMEOUT="${{ steps.بررسی.outputs.timeout }}"
-          PREFIX="${{ steps.بررسی.outputs.prefix }}"
-          TOTAL_URLS="${{ steps.بررسی.outputs.url_count }}"
+          PARALLEL="${{ steps.validate.outputs.parallel }}"
+          RETRY="${{ steps.validate.outputs.retry }}"
+          TIMEOUT="${{ steps.validate.outputs.timeout }}"
+          PREFIX="${{ steps.validate.outputs.prefix }}"
+          TOTAL_URLS="${{ steps.validate.outputs.url_count }}"
           
           # ایجاد اسکریپت دانلود
           cat > download.sh << 'SCRIPT'
@@ -255,10 +255,10 @@ jobs:
           echo "📊 آمار دانلود: موفق: $SUCCESS، ناموفق: $FAILED"
 
       - name: 🗜️ فشرده‌سازی و تقسیم فایل‌ها
-        id: آرشیو
+        id: archive
         run: |
-          SPLIT_MB="${{ steps.بررسی.outputs.split_mb }}"
-          COMPRESS="${{ steps.بررسی.outputs.compress }}"
+          SPLIT_MB="${{ steps.validate.outputs.split_mb }}"
+          COMPRESS="${{ steps.validate.outputs.compress }}"
           PASSWORD="${{ github.event.inputs.zip_password }}"
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           FOLDER="downloads/${TIMESTAMP}"
@@ -328,9 +328,9 @@ jobs:
           echo "📊 تعداد فایل‌های پردازش شده: ${PROCESSED}، حجم کل: ${TOTAL_SIZE_HR}"
 
       - name: 📊 ایجاد فایل راهنما
-        id: راهنما
+        id: manifest
         run: |
-          FOLDER="${{ steps.آرشیو.outputs.folder }}"
+          FOLDER="${{ steps.archive.outputs.folder }}"
           MANIFEST="${FOLDER}/راهنما.txt"
           
           echo "=========================================" > "$MANIFEST"
@@ -370,7 +370,7 @@ jobs:
 
       - name: 🚀 ارسال به مخزن با قابلیت تکرار
         run: |
-          FOLDER="${{ steps.آرشیو.outputs.folder }}"
+          FOLDER="${{ steps.archive.outputs.folder }}"
           
           # اضافه کردن همه فایل‌های جدید
           git add "${FOLDER}/"* 2>/dev/null || true
@@ -381,7 +381,7 @@ jobs:
           fi
           
           CHUNK_COUNT=$(git diff --staged --name-only | wc -l)
-          git commit -m "📦 آپلود: ${{ steps.آرشیو.outputs.processed_count }} فایل در پوشه ${FOLDER} (${CHUNK_COUNT} تکه)"
+          git commit -m "📦 آپلود: ${{ steps.archive.outputs.processed_count }} فایل در پوشه ${FOLDER} (${CHUNK_COUNT} تکه)"
           
           # ارسال با قابلیت تکرار خودکار
           MAX_RETRIES=10
@@ -411,13 +411,13 @@ jobs:
       - name: ✅ گزارش نهایی
         if: always()
         run: |
-          SUCCESS_DL="${{ steps.دانلود.outputs.success_count }}"
-          FAILED_DL="${{ steps.دانلود.outputs.failed_count }}"
-          PROCESSED="${{ steps.آرشیو.outputs.processed_count }}"
-          TOTAL_SIZE="${{ steps.آرشیو.outputs.total_size }}"
-          FOLDER="${{ steps.آرشیو.outputs.folder }}"
-          SPLIT_SIZE="${{ steps.بررسی.outputs.split_mb }}"
-          COMPRESS="${{ steps.بررسی.outputs.compress }}"
+          SUCCESS_DL="${{ steps.download.outputs.success_count }}"
+          FAILED_DL="${{ steps.download.outputs.failed_count }}"
+          PROCESSED="${{ steps.archive.outputs.processed_count }}"
+          TOTAL_SIZE="${{ steps.archive.outputs.total_size }}"
+          FOLDER="${{ steps.archive.outputs.folder }}"
+          SPLIT_SIZE="${{ steps.validate.outputs.split_mb }}"
+          COMPRESS="${{ steps.validate.outputs.compress }}"
           PASSWORD_SET="${{ github.event.inputs.zip_password != '' }}"
           
           # تعیین وضعیت کلی
