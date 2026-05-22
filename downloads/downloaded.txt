@@ -4,3 +4,4 @@ file_mhrv-rs-android-universal-v1.9.23.apk
 file_x-ui-linux-arm64.tar.gz
 file_MasterDnsVPN-GG-1.1.0-universal.apk
 file_MahsaNG_16_arm64-v8a.apk
+file_Se7enPro_Setup.exe
