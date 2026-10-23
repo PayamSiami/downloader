@@ -6,3 +6,4 @@ file_MasterDnsVPN-GG-1.1.0-universal.apk
 file_MahsaNG_16_arm64-v8a.apk
 file_Se7enPro_Setup.exe
 file_senpaiscanner-windows-amd64.exe
+file_Begzar-7.0.0-Windows-Setup.exe
